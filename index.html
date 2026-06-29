@@ -225,6 +225,41 @@
   }
   .copy-btn:hover { background:var(--accent-lt); border-color:var(--accent); }
 
+
+  /* ── Fairness slider ── */
+  .slider-wrap {
+    margin-top: 18px;
+  }
+  .slider-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .slider-header .s-title { font-size:.8rem; font-weight:600; color:var(--text); }
+  .slider-header .s-desc  { font-size:.76rem; color:var(--sub); }
+  .slider-labels {
+    display: flex; justify-content: space-between;
+    font-size:.7rem; color:var(--sub); margin-bottom:4px;
+  }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 3px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--border) 50%, var(--border) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 4px rgba(180,80,30,.3);
+    transition: transform .1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type=range]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 3px solid #fff; box-shadow: 0 1px 4px rgba(180,80,30,.3);
+  }
+
   footer { text-align:center; margin-top:36px; font-size:.74rem; color:#C4A898; }
 
   @media (max-width:500px) {
@@ -250,9 +285,24 @@
       <input type="number" id="total" class="input-md" value="27000" min="0" step="100">
       <span class="hint">元</span>
     </div>
-    <div class="coef-section-label">
-      小孩係數快速套用
-      <span>點擊後套用至所選小孩的係數欄</span>
+    <!-- Fairness slider -->
+    <div class="slider-wrap">
+      <div class="slider-header">
+        <span class="s-title">小孩費用比例調整</span>
+        <span class="s-desc" id="slider-desc">標準（各年齡層預設係數）</span>
+      </div>
+      <div class="slider-labels">
+        <span>0% 小孩免費</span>
+        <span>50% 標準</span>
+        <span>100% 同大人</span>
+      </div>
+      <input type="range" id="fairness-slider" min="0" max="100" value="50" step="1">
+    </div>
+
+    <!-- Per-child chip quick apply -->
+    <div class="coef-section-label" style="margin-top:16px">
+      個別小孩快速套用
+      <span>先點選小孩係數欄，再點下方套用</span>
     </div>
     <div class="coef-chips" id="coef-chips"></div>
   </section>
@@ -290,13 +340,34 @@
 <footer>🏕️ 住宿費用分攤小工具 · 純前端運算，資料不上傳</footer>
 
 <script>
-const coefOptions = [
-  { age:"0–2 歲", val:0.00, desc:"嬰幼兒，不佔資源" },
-  { age:"3–5 歲", val:0.20, desc:"共用大人床" },
-  { age:"6–9 歲", val:0.35, desc:"標準小孩" },
-  { age:"10–12", val:0.50, desc:"佔較多資源" },
-  { age:"13 歲+", val:0.75, desc:"接近大人需求" },
+// 基準係數（slider = 50% 時套用）
+const BASE_COEFS = [
+  { age:"0–2 歲", base:0.00, desc:"嬰幼兒" },
+  { age:"3–5 歲", base:0.20, desc:"共用大人床" },
+  { age:"6–9 歲", base:0.35, desc:"標準小孩" },
+  { age:"10–12", base:0.50, desc:"佔較多資源" },
+  { age:"13 歲+", base:0.75, desc:"接近大人" },
 ];
+
+// 依 slider 百分比（0–100）計算當前有效係數
+// 0% → 全部×0, 50% → 基準, 100% → 1.0
+function effectiveCoef(base, pct) {
+  if (pct <= 50) {
+    return base * (pct / 50);
+  } else {
+    return base + (1 - base) * ((pct - 50) / 50);
+  }
+}
+
+function getSliderPct() {
+  return parseInt(document.getElementById('fairness-slider').value);
+}
+
+// coefOptions 供 chip 快速套用（動態依 slider）
+function currentCoefOptions() {
+  const pct = getSliderPct();
+  return BASE_COEFS.map(o => ({ age: o.age, val: effectiveCoef(o.base, pct), desc: o.desc }));
+}
 
 const defaultFamilies = [
   { name:"A家", adults:2, children:[0.35, 0.35] },
@@ -312,35 +383,62 @@ let childCount  = 0;
 // 目前「焦點中」的係數 input（點 chip 時套用到這格）
 let focusedCoefInput = null;
 
-function init() {
-  // 建立 chips
+function buildChips() {
   const wrap = document.getElementById('coef-chips');
-  coefOptions.forEach(opt => {
+  wrap.innerHTML = '';
+  currentCoefOptions().forEach(opt => {
     const chip = document.createElement('div');
     chip.className = 'chip';
-    chip.title = `套用係數 ${opt.val.toFixed(2)} 到目前選取的小孩欄位`;
     chip.innerHTML = `
       <span class="chip-age">${opt.age}</span>
       <span class="chip-val">${opt.val.toFixed(2)}</span>
       <span class="chip-desc">${opt.desc}</span>
     `;
-    chip.onclick = () => {
+    chip.addEventListener('click', () => {
       if (focusedCoefInput) {
         focusedCoefInput.value = opt.val.toFixed(2);
         focusedCoefInput.focus();
-        // 短暫 highlight
         focusedCoefInput.style.borderColor = 'var(--accent)';
         setTimeout(() => focusedCoefInput.style.borderColor = '', 800);
       } else {
-        // 沒有焦點時，提示使用者先點一個小孩欄位
         chip.style.boxShadow = '0 0 0 2px var(--warn)';
-        chip.title = '請先點選一個小孩的係數欄位！';
-        setTimeout(() => { chip.style.boxShadow=''; chip.title=`套用係數 ${opt.val.toFixed(2)} 到目前選取的小孩欄位`; }, 1000);
+        setTimeout(() => chip.style.boxShadow = '', 1000);
       }
-    };
+    });
     wrap.appendChild(chip);
   });
+}
 
+function buildPreview() {
+  const pct = getSliderPct();
+
+  // Update desc label
+  const desc = document.getElementById('slider-desc');
+  if (pct === 0)       desc.textContent = '小孩完全免費';
+  else if (pct < 30)   desc.textContent = '對小孩非常友善';
+  else if (pct < 50)   desc.textContent = '偏向對小孩友善';
+  else if (pct === 50) desc.textContent = '標準（各年齡層預設係數）';
+  else if (pct < 70)   desc.textContent = '偏向按人數平攤';
+  else if (pct < 100)  desc.textContent = '接近純人頭平攤';
+  else                 desc.textContent = '完全按人頭平攤';
+
+  // Update slider track gradient
+  const slider = document.getElementById('fairness-slider');
+  slider.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+}
+
+function initSlider() {
+  const slider = document.getElementById('fairness-slider');
+  slider.addEventListener('input', () => {
+    buildPreview();
+    buildChips();
+  });
+  buildPreview();
+  buildChips();
+}
+
+function init() {
+  initSlider();
   defaultFamilies.forEach(f => addFamily(f));
 }
 
