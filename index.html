@@ -129,15 +129,21 @@
     display: flex; align-items: center; gap: 8px;
   }
   .child-row .child-label { font-size:.8rem; color:var(--sub); min-width:42px; flex-shrink:0; }
-  .child-row input.coef-input { width: 78px; text-align: center; }
+  .child-row input.coef-input { width: 78px; text-align: center; flex-shrink:0; }
   .child-row .coef-hint {
     font-size:.72rem; color:#BBA090;
-    flex: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .child-del-btn {
     background: none; border: none; cursor: pointer; color: #CDB0A0;
-    font-size: .9rem; padding: 2px 5px; border-radius: 4px;
+    font-size: .9rem; padding: 2px 8px; border-radius: 4px;
     transition: color .12s, background .12s;
+    flex-shrink: 0;
+    margin-left: auto;
   }
   .child-del-btn:hover { color: var(--danger); background: #FEE8E8; }
 
@@ -406,8 +412,11 @@ function addChild(fid, coefVal) {
            value="${coef.toFixed(2)}" style="text-align:center"
            title="此小孩的費用係數（相對於一位大人）">
     <span class="coef-hint">← 點上方年齡快速帶入</span>
-    <button class="child-del-btn" onclick="removeChild(${fid}, ${cid})" title="移除此小孩">✕</button>
+    <button class="child-del-btn" title="移除此小孩">✕</button>
   `;
+
+  // 刪除按鈕用 addEventListener，避免 inline onclick 找不到元素
+  row.querySelector('.child-del-btn').addEventListener('click', () => removeChild(fid, cid));
 
   // 追蹤焦點
   const inp = row.querySelector('.coef-input');
