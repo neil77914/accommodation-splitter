@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>住宿費用分攤</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #F7F8FA;
+    --surface:   #FFFFFF;
+    --border:    #E2E6ED;
+    --accent:    #2563EB;
+    --accent-lt: #EFF4FF;
+    --accent-dk: #1D4ED8;
+    --success:   #16A34A;
+    --warn:      #D97706;
+    --danger:    #DC2626;
+    --text:      #1A1D23;
+    --sub:       #6B7280;
+    --tag-bg:    #F1F5F9;
+    --radius:    10px;
+    --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
+    --font:      'Noto Sans TC', sans-serif;
+    --mono:      'DM Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 28px 24px 22px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: .02em; }
+  header p  { font-size: .85rem; opacity: .82; margin-top: 6px; }
+
+  /* ── Layout ── */
+  .container { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-top: 20px;
+  }
+  section.card h2 {
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--sub);
+    margin-bottom: 16px;
+  }
+
+  /* ── Form controls ── */
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .field-row label {
+    font-size: .875rem;
+    font-weight: 500;
+    min-width: 120px;
+    color: var(--text);
+  }
+  input[type=number], input[type=text] {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: .9rem;
+    font-family: var(--font);
+    color: var(--text);
+    background: #fff;
+    transition: border-color .15s;
+    outline: none;
+  }
+  input[type=number]:focus, input[type=text]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+  }
+  .input-sm { width: 80px; }
+  .input-md { width: 130px; }
+  .hint { font-size: .78rem; color: var(--sub); }
+
+  /* ── Coefficient reference chips ── */
+  .coef-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 10px;
+  }
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 11px 4px 8px;
+    font-size: .78rem;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    user-select: none;
+  }
+  .chip:hover { background: var(--accent-lt); border-color: var(--accent); }
+  .chip .chip-val {
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  /* ── Family table ── */
+  .family-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px 86px 32px;
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .family-grid .col-hdr {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--sub);
+    letter-spacing: .06em;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .family-row { display: contents; }
+  .family-row input { width: 100%; }
+  .del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--sub);
+    font-size: 1.1rem;
+    line-height: 1;
+    border-radius: 4px;
+    padding: 2px 4px;
+    transition: color .12s, background .12s;
+  }
+  .del-btn:hover { color: var(--danger); background: #FEE2E2; }
+
+  .add-btn {
+    margin-top: 14px;
+    background: none;
+    border: 1.5px dashed var(--border);
+    border-radius: 7px;
+    width: 100%;
+    padding: 9px;
+    font-size: .85rem;
+    color: var(--sub);
+    cursor: pointer;
+    font-family: var(--font);
+    transition: border-color .12s, color .12s;
+  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Calculate button ── */
+  .calc-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 13px;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    letter-spacing: .04em;
+    transition: background .15s, transform .1s;
+  }
+  .calc-btn:hover  { background: var(--accent-dk); }
+  .calc-btn:active { transform: scale(.98); }
+
+  /* ── Result table ── */
+  #result { display: none; }
+  .result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+  }
+  .result-table th {
+    background: var(--accent-lt);
+    color: var(--accent-dk);
+    font-weight: 700;
+    font-size: .75rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 9px 10px;
+    text-align: right;
+    border-bottom: 2px solid var(--accent);
+  }
+  .result-table th:first-child { text-align: left; }
+  .result-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-table td:first-child { text-align: left; font-weight: 500; }
+  .result-table tr:last-child td { border-bottom: none; }
+  .result-table tr:hover td { background: var(--tag-bg); }
+
+  .amount-exact { color: var(--sub); font-family: var(--mono); }
+  .amount-round {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent-dk);
+    font-size: 1rem;
+  }
+  .diff-pos { color: var(--warn); font-family: var(--mono); font-size: .8rem; }
+  .diff-neg { color: var(--success); font-family: var(--mono); font-size: .8rem; }
+  .diff-zer { color: var(--sub); font-family: var(--mono); font-size: .8rem; }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--accent-lt);
+    border: 1px solid #BFDBFE;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 16px;
+  }
+  .summary-item { text-align: center; }
+  .summary-item .s-label { font-size: .72rem; color: var(--sub); text-transform: uppercase; letter-spacing: .08em; }
+  .summary-item .s-val  {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--accent-dk);
+    display: block;
+    margin-top: 2px;
+  }
+  .overage-note {
+    margin-top: 10px;
+    font-size: .8rem;
+    color: var(--warn);
+    text-align: center;
+  }
+
+  /* ── Copy button ── */
+  .copy-btn {
+    margin-top: 14px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 16px;
+    font-size: .82rem;
+    font-family: var(--font);
+    cursor: pointer;
+    color: var(--text);
+    transition: background .12s;
+  }
+  .copy-btn:hover { background: var(--accent-lt); }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    margin-top: 36px;
+    font-size: .75rem;
+    color: var(--sub);
+  }
+
+  @media (max-width: 480px) {
+    .family-grid {
+      grid-template-columns: 1fr 60px 60px 70px 28px;
+      gap: 5px 5px;
+    }
+    header h1 { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 住宿費用分攤</h1>
+  <p>依家庭人數與小孩係數，自動計算每家應付金額</p>
+</header>
+
+<div class="container">
+
+  <!-- 基本設定 -->
+  <section class="card">
+    <h2>基本設定</h2>
+
+    <div class="field-row">
+      <label>住宿總費用</label>
+      <input type="number" id="total" class="input-md" value="27000" min="0" step="100">
+      <span class="hint">元</span>
+    </div>
+
+    <div class="field-row">
+      <label>小孩計費係數</label>
+      <input type="number" id="child-coef" class="input-sm" value="0.35" min="0" max="1" step="0.05">
+      <span class="hint">每位小孩 ÷ 每位大人（0 = 免費，1 = 同大人）</span>
+    </div>
+
+    <div class="coef-chips" id="coef-chips">
+      <span style="font-size:.78rem;color:var(--sub);align-self:center;">快速選擇：</span>
+    </div>
+  </section>
+
+  <!-- 家庭成員 -->
+  <section class="card">
+    <h2>各家庭成員</h2>
+
+    <div class="family-grid" id="family-header">
+      <div class="col-hdr">家庭名稱</div>
+      <div class="col-hdr" style="text-align:center">大人</div>
+      <div class="col-hdr" style="text-align:center">小孩</div>
+      <div class="col-hdr" style="text-align:center">小孩係數</div>
+      <div></div>
+    </div>
+
+    <div id="family-rows"></div>
+
+    <button class="add-btn" onclick="addFamily()">＋ 新增家庭</button>
+    <button class="calc-btn" onclick="calculate()">計算分攤金額</button>
+  </section>
+
+  <!-- 結果 -->
+  <section class="card" id="result">
+    <h2>分攤結果</h2>
+
+    <table class="result-table" id="result-table">
+      <thead>
+        <tr>
+          <th>家庭</th>
+          <th>等效人頭</th>
+          <th>精確金額</th>
+          <th>建議收款</th>
+          <th>差額</th>
+        </tr>
+      </thead>
+      <tbody id="result-body"></tbody>
+    </table>
+
+    <div class="summary-bar" id="summary-bar"></div>
+    <div class="overage-note" id="overage-note"></div>
+
+    <button class="copy-btn" onclick="copyResult()">📋 複製文字摘要</button>
+  </section>
+
+</div>
+
+<footer>住宿費用分攤小工具 · 純前端，資料不上傳</footer>
+
+<script>
+// ── 預設家庭 ──────────────────────────────────────
+const defaultFamilies = [
+  { name:"芮年", adults:2, children:2 },
+  { name:"筱芙", adults:2, children:2 },
+  { name:"于庭", adults:1, children:1 },
+  { name:"孜頤", adults:2, children:2 },
+  { name:"雨橦", adults:2, children:2 },
+];
+
+// ── 係數快速選項 ──────────────────────────────────
+const coefOptions = [
+  { label:"0–2 歲", val:0.00, desc:"嬰幼兒" },
+  { label:"3–5 歲", val:0.20, desc:"共用床" },
+  { label:"6–9 歲", val:0.35, desc:"標準（預設）" },
+  { label:"10–12", val:0.50, desc:"較大小孩" },
+  { label:"13 歲+", val:0.75, desc:"接近大人" },
+];
+
+let familyCount = 0;
+
+function init() {
+  // 建立係數 chips
+  const wrap = document.getElementById('coef-chips');
+  coefOptions.forEach(opt => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${opt.label}</span><span class="chip-val">${opt.val.toFixed(2)}</span>`;
+    chip.title = opt.desc;
+    chip.onclick = () => {
+      document.getElementById('child-coef').value = opt.val.toFixed(2);
+      // 同步更新所有家庭的「個別係數」欄（若未被手動改過）
+      document.querySelectorAll('.coef-input').forEach(inp => {
+        inp.value = opt.val.toFixed(2);
+      });
+    };
+    wrap.appendChild(chip);
+  });
+
+  // 加入預設家庭
+  defaultFamilies.forEach(f => addFamily(f));
+}
+
+function addFamily(preset = {}) {
+  familyCount++;
+  const id = familyCount;
+  const coef = parseFloat(document.getElementById('child-coef').value) || 0.35;
+
+  const container = document.getElementById('family-rows');
+  const row = document.createElement('div');
+  row.className = 'family-row';
+  row.id = `frow-${id}`;
+  row.innerHTML = `
+    <input type="text"   class="name-input"  placeholder="家庭 ${id}" value="${preset.name||''}">
+    <input type="number" class="adult-input" min="0" value="${preset.adults  ?? 2}" style="text-align:center">
+    <input type="number" class="child-input" min="0" value="${preset.children ?? 0}" style="text-align:center">
+    <input type="number" class="coef-input"  min="0" max="1" step="0.05" value="${coef.toFixed(2)}" style="text-align:center">
+    <button class="del-btn" onclick="removeFamily(${id})" title="移除">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function removeFamily(id) {
+  const el = document.getElementById(`frow-${id}`);
+  if (el) el.remove();
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('zh-TW'); }
+
+function calculate() {
+  const total = parseFloat(document.getElementById('total').value) || 0;
+
+  const rows = document.querySelectorAll('.family-row');
+  const families = [];
+
+  rows.forEach(row => {
+    const name    = row.querySelector('.name-input').value.trim() || '（未命名）';
+    const adults  = parseInt(row.querySelector('.adult-input').value) || 0;
+    const children= parseInt(row.querySelector('.child-input').value) || 0;
+    const coef    = parseFloat(row.querySelector('.coef-input').value) || 0;
+    const equiv   = adults + children * coef;
+    families.push({ name, adults, children, coef, equiv });
+  });
+
+  const totalEquiv = families.reduce((s, f) => s + f.equiv, 0);
+  if (totalEquiv === 0) { alert('請至少輸入一個家庭的人數！'); return; }
+
+  const perUnit = total / totalEquiv;
+
+  // 計算每家精確 & 取整（百元）
+  families.forEach(f => {
+    f.exact = f.equiv * perUnit;
+    f.round = Math.round(f.exact / 100) * 100;
+    f.diff  = f.round - f.exact;
+  });
+
+  const totalRound = families.reduce((s,f) => s + f.round, 0);
+  const overage = totalRound - total;
+
+  // 建立結果列
+  const tbody = document.getElementById('result-body');
+  tbody.innerHTML = '';
+  families.forEach(f => {
+    const diffClass = f.diff > 0.5 ? 'diff-pos' : f.diff < -0.5 ? 'diff-neg' : 'diff-zer';
+    const diffStr   = f.diff > 0.5 ? `+${fmt(f.diff)}` : f.diff < -0.5 ? `${fmt(f.diff)}` : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${f.name}</td>
+      <td style="text-align:right"><span style="font-family:var(--mono);color:var(--sub)">${f.equiv.toFixed(2)}</span></td>
+      <td class="amount-exact">${fmt(f.exact)}</td>
+      <td class="amount-round">${fmt(f.round)}</td>
+      <td class="${diffClass}">${diffStr}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Summary bar
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="summary-item">
+      <span class="s-label">住宿總費用</span>
+      <span class="s-val">$${fmt(total)}</span>
+    </div>
+    <div class="summary-item">
+      <span class="s-label">等效人頭總數</span>
+      <span class="s-val">${totalEquiv.toFixed(2)}</span>
+    </div>
+    <div class="summary-item">
+      <span class="s-label">每人頭費用</span>
+      <span class="s-val">$${perUnit.toFixed(1)}</span>
+    </div>
+    <div class="summary-item">
+      <span class="s-label">收款合計</span>
+      <span class="s-val" style="color:${Math.abs(overage)>50?'var(--warn)':'var(--success)'}">$${fmt(totalRound)}</span>
+    </div>
+  `;
+
+  const note = document.getElementById('overage-note');
+  if (Math.abs(overage) > 0) {
+    const dir = overage > 0 ? `多收 $${fmt(overage)}，可退給貢獻最多的家庭` : `少收 $${fmt(-overage)}，可由某家庭補差額`;
+    note.textContent = `⚠️ 取整後 ${dir}`;
+    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
+  }
+
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function copyResult() {
+  const rows = document.querySelectorAll('#result-body tr');
+  let text = `住宿費用分攤\n總費用：$${document.getElementById('total').value}\n\n`;
+  text += '家庭\t\t建議收款\n';
+  text += '─────────────────\n';
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    const name  = cells[0].textContent;
+    const round = cells[3].textContent;
+    text += `${name}\t\t$${round}\n`;
+  });
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => btn.textContent = '📋 複製文字摘要', 1800);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
